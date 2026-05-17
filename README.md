@@ -292,7 +292,7 @@ Each team member works on their assigned component:
 | Component | Person | Deadline | Status |
 |-----------|--------|----------|--------|
 | Backend (Lambda, Textract) | 1 | W11 | 🔄 In Development |
-| Database (DynamoDB) | 2 | W9 | ⏳ Pending |
+| Database (DynamoDB) | 2 | W9 | ⏳ Pending integrate |
 | Web Frontend (EC2, Flask) | 3 | W10 | ⏳ Pending |
 | DevOps (SNS, Archiving) | 4 | W11/19/6 | ⏳ Pending |
 
