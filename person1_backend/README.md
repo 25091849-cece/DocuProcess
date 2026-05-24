@@ -1,30 +1,233 @@
 # DocuProcess Backend - Person 1 README
 
-## Overview
+## 🎯 Overview
 
-This is **Person 1's Backend Implementation** for the DocuProcess Cloud Computing Capstone Project. The backend automates document data extraction using AWS Lambda, Amazon Textract, and DynamoDB.
+**DocuProcess** is a cloud-native, serverless document processing pipeline that automates the extraction of financial data (Vendor, Date, Amount) from PDF invoices using **AWS Lambda**, **Amazon Textract**, and **DynamoDB**. 
 
-## Quick Start
+### Key Features
+✅ **Automatic PDF Processing** - S3 upload triggers Lambda pipeline  
+✅ **AI-Powered OCR** - Amazon Textract for accurate text extraction  
+✅ **Confidence-Based Approval** - Auto-approve high-confidence documents (≥80%)  
+✅ **Smart Routing** - Low-confidence documents flagged for manual review  
+✅ **Scalable Architecture** - Serverless design handles unlimited documents  
+✅ **Complete Audit Trail** - CloudWatch logs track all operations  
 
-### Prerequisites
+**Capstone Project**: Cloud Computing Capstone - Document Processing Pipeline (Person 1: Backend)
+
+---
+
+## 📋 Prerequisites
+
+### Required
 - Python 3.9+
-- AWS Account (Academy Learner Lab)
-- AWS CLI configured
-- pip or conda
+- AWS Account with Academy Learner Lab access
+- AWS CLI v2+ installed and configured
+- Git for version control
 
-### Installation
+### Recommended
+- Visual Studio Code with Python extension
+- AWS Toolkit for VS Code
+- Postman (for API testing)
 
-1. **Clone and navigate**:
+### Check Prerequisites
+```bash
+# Verify Python version
+python3 --version
+
+# Verify AWS CLI
+aws --version
+
+# Verify AWS credentials
+aws sts get-caller-identity
+```
+
+---
+
+## 🚀 Quick Start (5 minutes)
+
+### 1. Clone Repository
 ```bash
 cd person1_backend
 ```
 
-2. **Install dependencies**:
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Configure environment**:
+### 3. Configure Environment
+```bash
+# macOS/Linux
+export AWS_REGION=us-east-1
+export S3_BUCKET_NAME=justicearch-inbox
+export DYNAMODB_TABLE_NAME=DocumentRecords
+export CONFIDENCE_THRESHOLD=80
+
+# Windows PowerShell
+$env:AWS_REGION="us-east-1"
+$env:S3_BUCKET_NAME="justicearch-inbox"
+$env:DYNAMODB_TABLE_NAME="DocumentRecords"
+$env:CONFIDENCE_THRESHOLD="80"
+```
+
+### 4. Run Unit Tests
+```bash
+python -m pytest tests/ -v
+```
+
+### 5. Deploy to AWS
+Follow [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) for step-by-step deployment instructions.
+
+---
+
+## 📁 Project Structure
+
+```
+person1_backend/
+├── lambda_function/                    # Core Lambda implementation
+│   ├── lambda_handler.py               # S3 event handler & orchestrator
+│   ├── textract_processor.py           # Textract integration & extraction
+│   ├── dynamodb_handler.py             # Database CRUD operations
+│   └── __init__.py
+├── config/                             # Configuration management
+│   ├── config.py                       # Environment-based settings
+│   └── __init__.py
+├── tests/                              # Unit test suite
+│   ├── test_lambda_handler.py          # Lambda handler tests
+│   ├── test_textract_processor.py      # Textract integration tests
+│   └── __init__.py
+├── docs/                               # Complete documentation
+│   ├── AWS_SETUP_GUIDE.md              # AWS step-by-step setup
+│   ├── DEPLOYMENT_GUIDE.md             # Lambda deployment procedures
+│   ├── IMPLEMENTATION_GUIDE.md         # Technical deep dive
+│   ├── API_REFERENCE.md                # Function documentation
+│   └── SLIDE_APPENDIX.md               # Presentation diagrams & content
+├── requirements.txt                    # Python dependencies
+├── test_event.json                     # Sample S3 event for testing
+├── deploy.sh                           # Deployment script (macOS/Linux)
+├── deploy.bat                          # Deployment script (Windows)
+└── README.md                           # This file
+```
+
+---
+
+## 🔧 Key Components
+
+### 1. Lambda Handler (`lambda_handler.py`)
+**Purpose**: Orchestrates the entire document processing pipeline
+
+**Responsibilities**:
+- Receives S3 ObjectCreated events
+- Extracts bucket name and file key
+- Calls Textract for OCR processing
+- Evaluates confidence scores
+- Routes to DynamoDB with appropriate status
+
+### 2. Textract Processor (`textract_processor.py`)
+**Purpose**: Manages Amazon Textract integration and field extraction
+
+**Key Features**:
+- `extract_document_data()` - Main extraction method
+- `_extract_vendor()` - Find vendor/company name
+- `_extract_date()` - Extract date using regex
+- `_extract_amount()` - Extract monetary amounts
+- `_calculate_confidence_score()` - Average confidence scoring
+
+### 3. DynamoDB Handler (`dynamodb_handler.py`)
+**Purpose**: Manages all database operations
+
+**Operations**:
+- Save extracted documents
+- Retrieve by document ID
+- Update records with review status
+- Query by approval status
+- Scan all documents
+
+### 4. Configuration (`config.py`)
+**Purpose**: Centralized environment management
+
+**Features**:
+- Environment variable loading with defaults
+- Multi-environment support (Dev/Prod/Test)
+- Configuration validation
+- Easy cross-environment deployment
+
+---
+
+## 📊 Document Processing Workflow
+
+```
+     ┌──────────────────────┐
+     │  PDF File Upload     │
+     │  (S3 Bucket)         │
+     └──────────┬───────────┘
+                │
+                ▼
+     ┌──────────────────────────────────┐
+     │  1. S3 Event Notification        │
+     │     - ObjectCreated:Put          │
+     └──────────┬───────────────────────┘
+                │
+                ▼
+     ┌──────────────────────────────────┐
+     │  2. Lambda Invocation            │
+     │     - Parse S3 event             │
+     │     - Start processing           │
+     └──────────┬───────────────────────┘
+                │
+                ▼
+     ┌──────────────────────────────────┐
+     │  3. Textract Processing          │
+     │     - Extract text               │
+     │     - Get confidence scores      │
+     └──────────┬───────────────────────┘
+                │
+                ▼
+     ┌──────────────────────────────────┐
+     │  4. Field Extraction             │
+     │     - Parse vendor, date, amount │
+     │     - Calculate avg confidence   │
+     └──────────┬───────────────────────┘
+                │
+         ┌──────┴──────┐
+         │             │
+    ✓ HIGH        ✗ LOW
+    (≥80%)        (<80%)
+         │             │
+         ▼             ▼
+    ┌─────────┐  ┌──────────────┐
+    │APPROVED │  │NEED_REVIEW   │
+    └────┬────┘  └──────┬───────┘
+         │              │
+         ▼              ▼
+    Save to       Flag & Alert
+    DynamoDB      SNS + Manual Review
+         │              │
+         └──────┬───────┘
+                ▼
+     ┌──────────────────────────────────┐
+     │  5. DynamoDB Storage             │
+     │     - Write record               │
+     │     - Log to CloudWatch          │
+     │     - Return success             │
+     └──────────────────────────────────┘
+```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AWS_REGION` | us-east-1 | AWS region |
+| `S3_BUCKET_NAME` | justicearch-inbox | Document inbox S3 bucket |
+| `DYNAMODB_TABLE_NAME` | DocumentRecords | Records storage table |
+| `CONFIDENCE_THRESHOLD` | 80 | Auto-approval threshold (0-100%) |
+| `LOG_LEVEL` | INFO | Logging level (DEBUG, INFO, WARNING, ERROR) |
+
+### Quick Configuration (macOS/Linux)
 ```bash
 export AWS_REGION=us-east-1
 export S3_BUCKET_NAME=justicearch-inbox
@@ -32,166 +235,170 @@ export DYNAMODB_TABLE_NAME=DocumentRecords
 export CONFIDENCE_THRESHOLD=80
 ```
 
-4. **Run tests**:
-```bash
-python -m pytest tests/ -v
+### Quick Configuration (Windows PowerShell)
+```powershell
+$env:AWS_REGION="us-east-1"
+$env:S3_BUCKET_NAME="justicearch-inbox"
+$env:DYNAMODB_TABLE_NAME="DocumentRecords"
+$env:CONFIDENCE_THRESHOLD="80"
 ```
 
-## Project Structure
+---
 
-```
-person1_backend/
-├── lambda_function/              # Core Lambda implementation
-│   ├── lambda_handler.py         # Main entry point
-│   ├── textract_processor.py     # Document extraction
-│   ├── dynamodb_handler.py       # Database operations
-│   └── __init__.py
-├── config/                       # Configuration
-│   ├── config.py
-│   └── __init__.py
-├── tests/                        # Unit tests
-│   ├── test_lambda_handler.py
-│   ├── test_textract_processor.py
-│   └── __init__.py
-├── docs/                         # Documentation
-│   ├── AWS_SETUP_GUIDE.md        # AWS setup instructions
-│   ├── IMPLEMENTATION_GUIDE.md   # Technical details
-│   ├── API_REFERENCE.md          # API documentation
-│   └── SLIDE_APPENDIX.md         # Presentation content
-├── requirements.txt              # Python dependencies
-└── README.md                     # This file
-```
-
-## Key Components
-
-### 1. Lambda Handler (`lambda_handler.py`)
-- Entry point for document processing pipeline
-- Triggered by S3 upload events
-- Orchestrates Textract extraction and DynamoDB storage
-
-### 2. Textract Processor (`textract_processor.py`)
-- Integrates with Amazon Textract API
-- Extracts vendor, date, and amount from documents
-- Calculates confidence scores
-- Uses regex patterns for field parsing
-
-### 3. DynamoDB Handler (`dynamodb_handler.py`)
-- Saves extracted documents to database
-- Supports CRUD operations (Create, Read, Update, Delete)
-- Query by status (APPROVED, NEED_REVIEW)
-
-### 4. Configuration (`config.py`)
-- Centralized environment variable management
-- Support for multiple environments (dev, prod, test)
-- Configuration validation
-
-## Workflow
-
-```
-PDF Upload to S3
-      ↓
-S3 Event Trigger
-      ↓
-Lambda Function Invoked
-      ↓
-Textract Extraction
-      ↓
-Confidence Calculation
-      ↓
-IF confidence ≥ 80%:
-  → Status: APPROVED
-  → Save to DynamoDB
-      ↓
-ELSE:
-  → Status: NEED_REVIEW
-  → Flag for manual review (Person 3)
-  → Alert to team (Person 4)
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| AWS_REGION | us-east-1 | AWS region |
-| S3_BUCKET_NAME | justicearch-inbox | S3 bucket name |
-| DYNAMODB_TABLE_NAME | DocumentRecords | DynamoDB table |
-| CONFIDENCE_THRESHOLD | 80 | Confidence % threshold |
-| LOG_LEVEL | INFO | Logging level |
-
-### Confidence Threshold
-- **≥ 80%**: Auto-approved (APPROVED status)
-- **< 80%**: Requires manual review (NEED_REVIEW status)
-
-Configurable via `CONFIDENCE_THRESHOLD` environment variable.
-
-## AWS Setup
-
-Complete setup guide available in [docs/AWS_SETUP_GUIDE.md](docs/AWS_SETUP_GUIDE.md):
-
-1. Create S3 bucket
-2. Set up IAM roles and policies
-3. Deploy Lambda function
-4. Configure S3 event trigger
-5. Test with sample PDF
-
-## API Reference
-
-See [docs/API_REFERENCE.md](docs/API_REFERENCE.md) for complete API documentation:
-- Lambda Handler API
-- Textract Processor API
-- DynamoDB Handler API
-- Configuration API
-
-## Testing
+## 🧪 Testing & Deployment
 
 ### Unit Tests
 ```bash
+# Run all tests
 python -m pytest tests/ -v
+
+# Run specific test
+python -m pytest tests/test_lambda_handler.py -v
 ```
 
 ### Integration Testing
 ```bash
 # Upload test PDF
-aws s3 cp sample-invoice.pdf s3://justicearch-inbox/invoices/
+aws s3 cp sample-invoice.pdf s3://justicearch-inbox/invoices/test-001.pdf
 
-# Monitor Lambda
+# Monitor Lambda execution
 aws logs tail /aws/lambda/DocuProcessDocumentExtractor --follow
 
-# Check results
-aws dynamodb scan --table-name DocumentRecords
+# Check DynamoDB results
+aws dynamodb scan --table-name DocumentRecords --output table
 ```
 
-## Deliverables
+### Deployment
+**Quick Deploy**: Follow [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
 
-- [x] Lambda function implementation
-- [x] Amazon Textract integration
-- [x] DynamoDB integration
-- [x] Confidence-based document routing
-- [x] Error handling and logging
-- [x] Unit tests
-- [x] Configuration management
-- [x] Complete documentation
-- [x] AWS setup guide
-- [x] API reference
-- [x] Slide content for presentation
+**Setup Checklist**:
+- [ ] AWS credentials configured
+- [ ] S3 bucket created
+- [ ] DynamoDB table created (Person 2)
+- [ ] IAM role with correct policies
+- [ ] Lambda function deployed
+- [ ] S3 event trigger configured
+- [ ] Test PDF uploaded and processed
 
-## Integration with Other Teams
+---
+
+## 📚 Complete Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [AWS_SETUP_GUIDE.md](docs/AWS_SETUP_GUIDE.md) | Complete AWS service setup and configuration |
+| [DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | Phase-by-phase deployment with testing |
+| [IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) | Technical deep dive and architecture |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | Function signatures and examples |
+| [SLIDE_APPENDIX.md](docs/SLIDE_APPENDIX.md) | Presentation content and diagrams |
+
+---
+
+## 🎯 Deliverables
+
+- ✅ Lambda function implementation
+- ✅ Amazon Textract OCR integration
+- ✅ DynamoDB integration with confidence routing
+- ✅ Confidence-based approval workflow
+- ✅ Complete error handling & logging
+- ✅ Unit test framework
+- ✅ AWS setup documentation
+- ✅ Deployment procedures
+- ✅ API reference
+- ✅ Presentation slides with diagrams
+
+---
+
+## 🤝 Team Integration
 
 ### Person 2 (Database)
-- Documents saved to DynamoDB table
-- Schema: document_id, vendor, date, amount, status, confidence_score
+- DynamoDB table creation and schema
+- Database query optimization
+- Backup and recovery procedures
 
-### Person 3 (Web Frontend)
-- Retrieves documents from DynamoDB
+### Person 3 (Frontend)
+- Queries extracted documents from DynamoDB
 - Displays APPROVED documents
-- Provides UI for manual review of NEED_REVIEW items
+- UI for manual NEED_REVIEW items
 
-### Person 4 (DevOps)
-- Receives NEED_REVIEW documents
-- Sends SNS notifications
-- Manages S3 lifecycle for archiving
+### Person 4 (DevOps/SNS)
+- SNS notifications for NEED_REVIEW items
+- S3 document archiving
+- Pipeline monitoring and alerts
+
+---
+
+## 📦 Dependencies
+
+```
+boto3==1.28.85         # AWS SDK for Python
+botocore==1.31.85      # Core AWS functionality
+python-dateutil==2.8.2 # Date utilities
+requests==2.31.0       # HTTP library
+pytest                 # Testing framework (dev only)
+```
+
+Install: `pip install -r requirements.txt`
+
+---
+
+## 💰 Cost Analysis
+
+**For 1,000 documents/month**:
+- Lambda: $0.07
+- S3: $0.03
+- **Textract: $10.00**
+- DynamoDB: $0.25
+- **Total: ~$10.35/month** ($0.01 per document)
+
+---
+
+## 📞 Support & Troubleshooting
+
+### Common Issues
+
+| Problem | Solution |
+|---------|----------|
+| Lambda not triggered | Verify S3 event notification: `aws s3api get-bucket-notification-configuration --bucket <bucket>` |
+| Access denied errors | Check IAM policy: `aws iam list-role-policies --role-name DocuProcess-Lambda-Role` |
+| Low confidence scores | Improve PDF quality or adjust CONFIDENCE_THRESHOLD |
+| DynamoDB errors | Verify table exists: `aws dynamodb describe-table --table-name DocumentRecords` |
+
+**For detailed troubleshooting**, see [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md#troubleshooting)
+
+---
+
+## ✅ Implementation Checklist
+
+- [x] Core Lambda function
+- [x] Textract integration
+- [x] DynamoDB integration
+- [x] Confidence routing logic
+- [x] Error handling
+- [x] CloudWatch logging
+- [x] Unit tests
+- [x] AWS setup documentation
+- [x] Deployment guide
+- [x] Complete README
+- [x] API reference
+- [x] Slide presentation content
+
+---
+
+## 📅 Project Status
+
+**Deadline**: Week 11  
+**Duration**: Max 3 Weeks  
+**Status**: ✅ **Complete & Ready for Deployment**
+
+**Next Phase**: AWS deployment and integration testing with other teams
+
+---
+
+**Project**: Cloud Computing Capstone - DocuProcess  
+**Component**: Person 1 - Backend (Lambda, Textract, DynamoDB)  
+**Last Updated**: January 2024
+
 
 ## Documentation
 

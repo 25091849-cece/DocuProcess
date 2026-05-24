@@ -1,10 +1,63 @@
-# Person 1 Backend - Slide Appendix Content
+# DocuProcess - Slide Appendix & Architecture Documentation
 
-## Slide 1: S3 Setup
+## Executive Summary
+
+**DocuProcess** is a cloud-native document processing pipeline built on AWS that automatically extracts key financial data (Vendor, Date, Amount) from PDF documents using Amazon Textract OCR and AI services. The system features a confidence-based approval workflow where high-confidence extractions are automatically approved while low-confidence results are flagged for manual review.
+
+---
+
+## System Architecture
+
+### High-Level Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         AWS CLOUD ECOSYSTEM                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────────┐     ┌───────────────┐     ┌───────────────┐   │
+│  │              │     │               │     │               │   │
+│  │   S3 Inbox   │────▶│   Lambda      │────▶│   Textract    │   │
+│  │ (PDF Upload) │     │   Function    │     │   (OCR/AI)    │   │
+│  │              │     │               │     │               │   │
+│  └──────────────┘     └───────────────┘     └───────────────┘   │
+│         ▲                     │                                   │
+│         │                     │ Process                           │
+│         │                     │ Extract                           │
+│         │                     │ Analyze                           │
+│         │                     ▼                                   │
+│         │             ┌───────────────────┐                      │
+│         │             │ Confidence Logic  │                      │
+│         │             │                   │                      │
+│         │             │ > 80% ?           │                      │
+│         │             │ ✓ APPROVED        │                      │
+│         │             │ ✗ NEED_REVIEW     │                      │
+│         │             └─────────┬─────────┘                      │
+│         │                       │                                │
+│         │       ┌───────────────┼───────────────┐               │
+│         │       ▼               ▼               ▼               │
+│         │  ┌─────────┐    ┌──────────┐   ┌──────────┐          │
+│         │  │DynamoDB │    │SNS Topic │   │CloudWatch│          │
+│         │  │(Records)│    │(Person 4)│   │(Logs)    │          │
+│         │  └────┬────┘    └──────────┘   └──────────┘          │
+│         │       │                                               │
+│         └───────┴───────────────────────────────────────────────┘
+│
+└─────────────────────────────────────────────────────────────────┘
+
+         ┌─────────────────────────────────┐
+         │    GitHub Integration (CI/CD)    │
+         │  Code → Deploy → Monitor → Alert │
+         └─────────────────────────────────┘
+```
+
+---
+
+## Component Details
+
+### Slide 1: S3 Setup
 
 **Title**: Setting Up Amazon S3 for Document Storage
-
-### Content:
 
 **Step 1: Create S3 Bucket**
 ```bash
@@ -44,7 +97,7 @@ justicearch-inbox/
 
 ---
 
-## Slide 2: Lambda Setup & Configuration
+### Slide 2: Lambda Setup & Configuration
 
 **Title**: AWS Lambda Function for Document Processing
 

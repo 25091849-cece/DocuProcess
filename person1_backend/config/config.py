@@ -15,11 +15,17 @@ class Config:
     # AWS Configuration
     AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
     AWS_PROFILE = os.getenv('AWS_PROFILE', 'default')
+    AWS_ACCOUNT_ID = os.getenv('AWS_ACCOUNT_ID', '767397810758')
     
     # S3 Configuration
     S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME', 'justicearch-inbox')
+    S3_INVOICES_PREFIX = os.getenv('S3_INVOICES_PREFIX', 'invoices/')
     S3_PROCESSED_PREFIX = os.getenv('S3_PROCESSED_PREFIX', 'processed/')
     S3_ARCHIVED_PREFIX = os.getenv('S3_ARCHIVED_PREFIX', 'archived/')
+    S3_FAILED_PREFIX = os.getenv('S3_FAILED_PREFIX', 'failed/')
+    S3_MAX_FILE_SIZE = int(os.getenv('S3_MAX_FILE_SIZE', '10485760'))  # 10MB in bytes
+    S3_ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'tiff']
+    S3_ENABLE_VERSIONING = os.getenv('S3_ENABLE_VERSIONING', 'true').lower() == 'true'
     
     # DynamoDB Configuration
     DYNAMODB_TABLE_NAME = os.getenv('DYNAMODB_TABLE_NAME', 'DocumentRecords')
@@ -58,7 +64,39 @@ class Config:
             if not getattr(cls, var, None):
                 raise ValueError(f"Missing required configuration: {var}")
         
+        # Validate AWS Account ID
+        if not cls.AWS_ACCOUNT_ID:
+            raise ValueError("Missing required configuration: AWS_ACCOUNT_ID")
+        
         return True
+    
+    @classmethod
+    def get_s3_path(cls, prefix: str, filename: str) -> str:
+        """
+        Generate full S3 path for a file
+        
+        Args:
+            prefix: S3 prefix (e.g., 'invoices/')
+            filename: Original filename
+            
+        Returns:
+            str: Full S3 path
+        """
+        return f"{prefix}{filename}" if prefix else filename
+    
+    @classmethod
+    def validate_file_extension(cls, filename: str) -> bool:
+        """
+        Validate if file extension is allowed
+        
+        Args:
+            filename: Filename to validate
+            
+        Returns:
+            bool: True if allowed, False otherwise
+        """
+        ext = filename.split('.')[-1].lower()
+        return ext in cls.S3_ALLOWED_EXTENSIONS
     
     @classmethod
     def to_dict(cls) -> dict:
@@ -70,7 +108,14 @@ class Config:
         """
         return {
             'AWS_REGION': cls.AWS_REGION,
+            'AWS_ACCOUNT_ID': cls.AWS_ACCOUNT_ID,
             'S3_BUCKET_NAME': cls.S3_BUCKET_NAME,
+            'S3_INVOICES_PREFIX': cls.S3_INVOICES_PREFIX,
+            'S3_PROCESSED_PREFIX': cls.S3_PROCESSED_PREFIX,
+            'S3_ARCHIVED_PREFIX': cls.S3_ARCHIVED_PREFIX,
+            'S3_FAILED_PREFIX': cls.S3_FAILED_PREFIX,
+            'S3_MAX_FILE_SIZE': cls.S3_MAX_FILE_SIZE,
+            'S3_ALLOWED_EXTENSIONS': cls.S3_ALLOWED_EXTENSIONS,
             'DYNAMODB_TABLE_NAME': cls.DYNAMODB_TABLE_NAME,
             'CONFIDENCE_THRESHOLD': cls.CONFIDENCE_THRESHOLD,
             'TEXTRACT_MAX_RESULTS': cls.TEXTRACT_MAX_RESULTS,

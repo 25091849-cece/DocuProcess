@@ -8,6 +8,24 @@ cd person1_backend
 pip install -r requirements.txt
 ```
 
+### 1.2 Set Environment Variables
+
+**On Windows (PowerShell)**:
+```powershell
+$env:AWS_REGION = "us-east-1"
+$env:S3_BUCKET_NAME = "justicearch-inbox"
+$env:DYNAMODB_TABLE_NAME = "DocumentRecords"
+$env:CONFIDENCE_THRESHOLD = "80"
+```
+
+**On macOS/Linux (Bash)**:
+```bash
+export AWS_REGION=us-east-1
+export S3_BUCKET_NAME=justicearch-inbox
+export DYNAMODB_TABLE_NAME=DocumentRecords
+export CONFIDENCE_THRESHOLD=80
+```
+
 ### 2. Run Unit Tests
 ```bash
 python -m pytest tests/ -v
