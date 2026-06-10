@@ -3,7 +3,10 @@ import json, boto3, uuid, datetime, re
 s3       = boto3.client('s3')
 textract = boto3.client('textract')
 dynamodb = boto3.resource('dynamodb')
+sns      = boto3.client('sns', region_name='ap-southeast-1')
 table    = dynamodb.Table('JusticeArchDocuments')
+
+SNS_TOPIC_ARN = 'arn:aws:sns:ap-southeast-1:393323650223:JusticeArch-ReviewAlert'
 
 def get_text(block, blocks_map):
     """Follow relationships to extract actual text from a block."""
@@ -139,10 +142,23 @@ def lambda_handler(event, context):
 
     # ── Step 7: Calculate confidence & save to DynamoDB ──────────────────
     avg_confidence = sum(scores) / len(scores) if scores else 50.0
-    flagged        = avg_confidence < 80.0
 
-    # ✅ NEW LOGIC: auto-approve if confidence >= 80%, else pending for review
-    status = 'APPROVED' if avg_confidence >= 80.0 else 'PENDING'
+    # Three-tier confidence logic:
+    # >= 80%  → auto-approved
+    # 60-79%  → pending review (normal priority)
+    # < 60%   → pending review (high priority, highlighted)
+    if avg_confidence >= 80.0:
+        status           = 'APPROVED'
+        flagged          = False
+        review_priority  = 'NORMAL'
+    elif avg_confidence >= 60.0:
+        status           = 'PENDING'
+        flagged          = True
+        review_priority  = 'NORMAL'
+    else:
+        status           = 'PENDING'
+        flagged          = True
+        review_priority  = 'HIGH'
 
     doc_id = str(uuid.uuid4())
     table.put_item(Item={
@@ -153,14 +169,62 @@ def lambda_handler(event, context):
         'amount':          amount,
         'confidence':      str(round(avg_confidence, 2)),
         'flaggedForReview': flagged,
-        'status':          status,        # ✅ CHANGED: was hardcoded 'PENDING'
+        'reviewPriority':  review_priority,
+        'status':          status,
         'uploadedAt':      datetime.datetime.utcnow().isoformat(),
         'rawKVPairs':      json.dumps(kv_pairs)
     })
 
+    # ── Step 8: Send SNS notification if human review is needed ──────────
+    if flagged:
+        if review_priority == 'HIGH':
+            subject = '🔴 [URGENT] JusticeArch – Low Confidence Document Requires Review'
+            message = (
+                f"URGENT REVIEW REQUIRED\n"
+                f"{'='*50}\n\n"
+                f"A document was processed with VERY LOW confidence and requires immediate attention.\n\n"
+                f"Document Details:\n"
+                f"  File     : {key}\n"
+                f"  Doc ID   : {doc_id}\n"
+                f"  Vendor   : {vendor}\n"
+                f"  Date     : {date}\n"
+                f"  Amount   : {amount}\n"
+                f"  Confidence: {avg_confidence:.1f}% (below 60% threshold)\n"
+                f"  Priority : HIGH — please review immediately\n\n"
+                f"Action Required:\n"
+                f"  Log in to the JusticeArch Review Portal and verify this document.\n"
+            )
+        else:
+            subject = '⚠️ [ACTION NEEDED] JusticeArch – Document Pending Review'
+            message = (
+                f"DOCUMENT PENDING REVIEW\n"
+                f"{'='*50}\n\n"
+                f"A document was processed with moderate confidence and requires human review.\n\n"
+                f"Document Details:\n"
+                f"  File     : {key}\n"
+                f"  Doc ID   : {doc_id}\n"
+                f"  Vendor   : {vendor}\n"
+                f"  Date     : {date}\n"
+                f"  Amount   : {amount}\n"
+                f"  Confidence: {avg_confidence:.1f}% (between 60–79%)\n"
+                f"  Priority : NORMAL\n\n"
+                f"Action Required:\n"
+                f"  Log in to the JusticeArch Review Portal to approve or reject this document.\n"
+            )
+
+        try:
+            sns.publish(
+                TopicArn=SNS_TOPIC_ARN,
+                Subject=subject,
+                Message=message
+            )
+            print(f"SNS notification sent | Priority={review_priority}")
+        except Exception as e:
+            print(f"SNS notification failed: {e}")
+
     print(f"Processed: {key}")
     print(f"Vendor={vendor} | Date={date} | Amount={amount}")
-    print(f"Confidence={avg_confidence:.1f}% | Flagged={flagged} | Status={status}")
+    print(f"Confidence={avg_confidence:.1f}% | Flagged={flagged} | Status={status} | Priority={review_priority}")
     print(f"KV Pairs found: {list(kv_pairs.keys())}")
 
     return {'statusCode': 200, 'body': json.dumps('Done')}

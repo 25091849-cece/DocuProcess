@@ -133,8 +133,14 @@ TEMPLATE = '''
     .badge-pending  { background: #fff3cd; color: #856404; }
     .badge-rejected { background: #f8d7da; color: #842029; }
 
-    .conf-high { color: #1a7f4b; font-weight: bold; }
-    .conf-low  { color: #c0392b; font-weight: bold; }
+    .conf-high   { color: #1a7f4b; font-weight: bold; }
+    .conf-mid    { color: #e67e22; font-weight: bold; }
+    .conf-low    { color: #c0392b; font-weight: bold; }
+
+    /* High-priority row highlight (confidence < 60%) */
+    tr.priority-high td { background: #fff0f0 !important; }
+    tr.priority-high:hover td { background: #ffe0e0 !important; }
+    tr.priority-high { border-left: 4px solid #dc3545; }
 
     /* ── Action buttons ── */
     .btn {
@@ -507,7 +513,7 @@ TEMPLATE = '''
         </thead>
         <tbody id="tableBody">
       {% for doc in docs %}
-        <tr class="doc-row" data-doc-id="{{ doc.documentId }}">
+        <tr class="doc-row {% if doc.reviewPriority == 'HIGH' %}priority-high{% endif %}" data-doc-id="{{ doc.documentId }}">
           <td style="text-align:center">
             <input type="checkbox" class="row-checkbox" onchange="updateSelection()">
           </td>
@@ -519,10 +525,13 @@ TEMPLATE = '''
           <td><b>{{ doc.amount }}</b></td>
           <td>
             {% set conf = doc.confidence | float %}
-            <span class="{{ 'conf-low' if conf < 80 else 'conf-high' }}">
-              {{ doc.confidence }}%
-              {% if conf < 80 %}⚠️{% else %}✅{% endif %}
-            </span>
+            {% if conf >= 80 %}
+              <span class="conf-high">{{ doc.confidence }}% ✅</span>
+            {% elif conf >= 60 %}
+              <span class="conf-mid">{{ doc.confidence }}% ⚠️</span>
+            {% else %}
+              <span class="conf-low">{{ doc.confidence }}% 🔴</span>
+            {% endif %}
           </td>
           <td>
             {% if doc.status == 'APPROVED' %}
@@ -536,6 +545,11 @@ TEMPLATE = '''
               {% endif %}
             {% else %}
               <span class="badge badge-pending">⏳ Pending</span>
+              {% if doc.reviewPriority == 'HIGH' %}
+                <div style="font-size:11px;color:#dc3545;font-weight:bold;margin-top:4px">
+                  🔴 优先审核
+                </div>
+              {% endif %}
             {% endif %}
           </td>
           <td style="font-size:11px;color:#666">
