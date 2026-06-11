@@ -547,7 +547,7 @@ TEMPLATE = '''
               <span class="badge badge-pending">⏳ Pending</span>
               {% if doc.reviewPriority == 'HIGH' %}
                 <div style="font-size:11px;color:#dc3545;font-weight:bold;margin-top:4px">
-                  🔴 优先审核
+                  🔴 Important!
                 </div>
               {% endif %}
             {% endif %}
